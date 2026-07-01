@@ -93,6 +93,8 @@ enum Process: String, CaseIterable, Identifiable, Codable {
     }
 
     /// How monochromatic the process is (0 = fully spectral/UV response, 1 = neutral luma).
+    /// Retained for the pure-Core-Image fallback graph, which has no per-channel
+    /// actinic control — the Metal kernel uses the richer `spectral` weights instead.
     var desatBias: Float {
         switch self {
         case .cyanotype:     return 0.15  // strong UV/blue response
@@ -101,6 +103,43 @@ enum Process: String, CaseIterable, Identifiable, Codable {
         case .vandyke:       return 0.45
         case .saltPrint:     return 0.40
         }
+    }
+
+    /// Actinic (spectral) sensitivity — how much each of R, G, B actually exposes the
+    /// sensitized layer. None of these emulsions were panchromatic: they see mostly UV
+    /// and blue, so warm subjects (skin, red lips, foliage) render dark and blue skies
+    /// blow out. The weights are normalised to sum ≈ 1 so a neutral grey keeps its
+    /// value and only *coloured* light is redistributed. Cyanotype is the most
+    /// selective (nearly blind to red); the daguerreotype the least.
+    var spectral: SIMD3<Float> {
+        switch self {
+        case .cyanotype:     return SIMD3(0.045, 0.205, 0.750) // iron salts: UV/blue only
+        case .tintype:       return SIMD3(0.075, 0.245, 0.680) // wet collodion, blue-sensitive
+        case .daguerreotype: return SIMD3(0.130, 0.300, 0.570) // widest of the five, still blue-biased
+        case .vandyke:       return SIMD3(0.070, 0.230, 0.700) // iron-silver POP
+        case .saltPrint:     return SIMD3(0.090, 0.250, 0.660) // silver-chloride POP
+        }
+    }
+
+    /// How much visible *silver* grain the process carries. Grain is a silver-particle
+    /// phenomenon: collodion plates show it most, POP papers less, and the cyanotype —
+    /// a grainless Prussian-blue stain in the paper fibre — essentially not at all.
+    /// Scales the user grain control so "grain up" stays honest to the chemistry.
+    var silverGrain: Float {
+        switch self {
+        case .cyanotype:     return 0.12  // Prussian blue stain — no silver, no grain
+        case .vandyke:       return 0.40  // matte iron-silver on rag paper
+        case .saltPrint:     return 0.50  // fine silver-chloride grain
+        case .daguerreotype: return 0.75  // fine mercury-amalgam / buffing grain
+        case .tintype:       return 1.00  // collodion silver — the graniest of the five
+        }
+    }
+
+    /// "Bronzing" — the deepest, over-exposed Prussian-blue shadows of a cyanotype
+    /// solarise to a warm metallic bronze sheen. A signature tell of the process, and
+    /// unique to it among the five.
+    var bronzing: Float {
+        self == .cyanotype ? 1.0 : 0.0
     }
 
     /// Additive metallic specular in the highlights (plate processes).

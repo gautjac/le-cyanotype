@@ -101,8 +101,10 @@ final class ProcessEngine {
                 Float(settings.grain),
                 curve.gamma, curve.toe, curve.shoulder,
                 vec3(tone.shadow), vec3(tone.mid), vec3(tone.high), tone.pivot,
-                process.desatBias,
+                vec3(process.spectral),
                 process.metalSheen,
+                process.silverGrain,
+                process.bronzing,
             ]
             if let out = kernel.apply(extent: extent, arguments: args) {
                 return out.cropped(to: extent)

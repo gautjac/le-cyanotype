@@ -11,18 +11,25 @@ The heart of the app is a single stitchable Metal `CIColorKernel` (`AltProcess.c
 that acts as a **darkroom simulator**. For each process it reproduces the real behaviour of
 the sensitized paper or plate:
 
-- **Actinic / spectral response** — cyanotype and salt prints see mostly UV/blue, so reds go
-  dark and skies blow out; collodion (tintype) is blue-sensitive. The kernel weights the
-  channels toward each process's real spectral sensitivity before collapsing to a density.
-- **Characteristic (H&D) curve** — a toe (base fog), a straight-line gamma slope, and a
-  highlight shoulder, tuned per process. The tintype is hard and contrasty with creamy
-  highlights; the daguerreotype is delicate and low-contrast.
+- **Actinic / spectral response** — none of these emulsions were panchromatic. Each carries
+  its *own* per-channel sensitivity (R, G, B weights that sum to ≈1, so neutrals are
+  preserved and only coloured light is redistributed): the cyanotype is nearly blind to red,
+  collodion (tintype) is blue-sensitive, the daguerreotype has the broadest response of the
+  five. Warm subjects render dark and blue skies blow out — most extremely on the cyanotype.
+- **Characteristic (H&D) curve** — a straight-line gamma slope, a highlight shoulder, and a
+  base-fog / veiling floor (nothing on an aged print reaches true paper-black), tuned per
+  process. The tintype is hard and contrasty with creamy highlights; the daguerreotype is
+  delicate and low-contrast.
 - **Toning** — a shadow/mid/highlight split-tone painted in the pigment or metal the
   chemistry actually deposits: Prussian blue, cold silver, mirror-silver, Van Dyke brown,
   gold-toned sepia.
 - **Metal sheen** — a cool specular glint added only in the near-white highlights of the
   plate processes.
-- **Silver / chemical grain** — weighted toward the midtones, where it really shows.
+- **Bronzing** — the signature cyanotype tell: its deepest, over-exposed Prussian-blue
+  shadows solarise to a warm metallic bronze with a faint sheen. Unique to the cyanotype.
+- **Silver grain** — weighted toward the midtones, and scaled by how much silver the process
+  actually deposits: collodion plates grain hard, POP papers less, and the grainless
+  Prussian-blue cyanotype barely at all.
 
 Around the kernel, a Core Image graph layers the imperfections that betray a real print:
 procedurally-generated **paper tooth** (deckle) or **plate lacquer**, **coffee-stain

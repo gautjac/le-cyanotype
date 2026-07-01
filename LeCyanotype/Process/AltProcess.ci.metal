@@ -27,17 +27,21 @@ namespace cy {
 
     // A soft filmic shoulder+toe. Real emulsions don't clip; density rolls off.
     // `gamma` sets the mid contrast (the slope of the straight-line portion),
-    // `toe` lifts the shadows (base fog), `shoulder` compresses the highlights.
+    // `toe` is the base-fog / veiling density (the darkest a print value can reach),
+    // `shoulder` compresses the highlights. Returned value is print luminance
+    // (1 = paper white, 0 = maximum deposited density).
     inline float hd_curve(float x, float gamma, float toe, float shoulder) {
         x = clamp(x, 0.0, 1.0);
-        // Straight-line portion via a gamma slope around mid grey.
+        // Straight-line portion: gamma slope around mid grey.
         float g = pow(x, gamma);
-        // Toe: lift the darkest values a touch (fog floor).
-        g = mix(g, g * (0.75 + 0.25 * g) + toe, toe > 0.0 ? 0.6 : 0.0);
-        g = max(g, toe);
-        // Shoulder: compress highlights so speculars turn creamy, not clipped.
-        float s = 1.0 - exp(-g * (1.0 + shoulder * 2.0));
-        g = mix(g, s / (1.0 - exp(-(1.0 + shoulder * 2.0))), shoulder);
+        // Highlight shoulder: exponential roll-off so speculars turn creamy, not
+        // clipped. Normalised so g == 1 stays at paper white.
+        float k = 1.0 + shoulder * 2.0;
+        float s = (1.0 - exp(-g * k)) / (1.0 - exp(-k));
+        g = mix(g, s, shoulder);
+        // Base fog: lift the floor so the deepest shadow carries a veiling density
+        // `toe` (nothing on an aged print is truly paper-black), leaving white intact.
+        g = toe + (1.0 - toe) * g;
         return clamp(g, 0.0, 1.0);
     }
 
@@ -78,21 +82,21 @@ extern "C" {
     // tone colours (shadow, mid, highlight) and pivot
     float3 shadowC, float3 midC, float3 highC, float pivot,
     // process quirks
-    float  desatBias,              // how monochromatic the process is (UV/collodion response)
-    float  metalSheen)             // additive metallic specular in highlights (tintype/daguerreotype)
+    float3 spectral,               // per-channel actinic sensitivity (R,G,B weights)
+    float  metalSheen,             // additive metallic specular in highlights (tintype/daguerreotype)
+    float  silverGrain,            // how much visible silver grain the process carries
+    float  bronzing)               // cyanotype Dmax bronze solarisation (1 = cyanotype, else 0)
 {
     float3 base = src.rgb;
 
     // ── 1. Spectral / actinic response ──────────────────────────────────────
-    // Old processes are not panchromatic. Cyanotype & salt respond mostly to UV/
-    // blue, so reds & greens go dark and skies blow out; collodion (tintype) is
-    // blue-sensitive too, rendering warm skin dark and skies pale. We model this
-    // by weighting the channels toward the process's real spectral sensitivity
-    // before collapsing to a single density, then blend toward plain luma by
-    // desatBias so fully-neutral processes still read naturally.
-    float uvResponse = dot(base, float3(0.10, 0.30, 0.60)); // blue-weighted
-    float neutral    = cy::luma(base);
-    float lightValue = mix(uvResponse, neutral, desatBias);
+    // Old processes are not panchromatic. Each sees a characteristic slice of the
+    // spectrum — cyanotype almost pure UV/blue (reds vanish, skies blow out),
+    // collodion blue-sensitive, the daguerreotype the broadest of the five. We
+    // collapse the scene to a single exposing "light value" through the process's
+    // real per-channel sensitivity. Weights sum to ≈1, so a neutral grey keeps its
+    // value and only coloured light is redistributed.
+    float lightValue = dot(base, spectral);
 
     // Exposure in stops, applied in the light domain (before the paper curve).
     lightValue *= exp2(exposure);
@@ -116,12 +120,21 @@ extern "C" {
     float hi = smoothstep(0.72, 1.0, 1.0 - dens);
     col += metalSheen * hi * float3(0.55, 0.62, 0.70);
 
-    // ── 5. Grain ─────────────────────────────────────────────────────────────
-    // Silver / chemical grain is most visible in the mid densities, not the
-    // extremes. Modulate the incoming grain sample by a mid-tone weight.
+    // ── 5. Bronzing (cyanotype Dmax solarisation) ────────────────────────────
+    // Where a cyanotype is exposed to its deepest density, the Prussian blue turns
+    // over to a warm metallic bronze with a faint sheen — the classic "bronzed"
+    // shadow. Only bites in the darkest deposit, and only for the cyanotype.
+    float bronze = smoothstep(0.80, 1.0, dens) * bronzing;
+    col = mix(col, col + float3(0.12, 0.06, -0.03), bronze);   // warm the deepest shadows
+    col += bronze * 0.05 * float3(0.90, 0.72, 0.42);           // faint metallic glint
+
+    // ── 6. Grain ─────────────────────────────────────────────────────────────
+    // Silver grain is most visible in the mid densities, not the extremes, and
+    // scales with how much silver the process actually deposits — collodion plates
+    // grain hard, the grainless Prussian-blue cyanotype barely at all.
     float g = grain.r - 0.5;
     float midWeight = 1.0 - abs((1.0 - dens) - 0.5) * 2.0; // peaks at mid grey
-    col += g * grainAmount * 0.28 * (0.4 + 0.6 * midWeight);
+    col += g * grainAmount * silverGrain * 0.28 * (0.4 + 0.6 * midWeight);
 
     col = clamp(col, 0.0, 1.0);
     return half4(half3(col), src.a);

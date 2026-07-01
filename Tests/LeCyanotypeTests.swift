@@ -65,6 +65,47 @@ final class LeCyanotypeTests: XCTestCase {
         }
     }
 
+    func testSpectralWeightsArePreservingAndBlueBiased() {
+        // Every emulsion is orthochromatic-or-worse: weighted to blue, and normalised
+        // so a neutral grey keeps its value (sum ≈ 1) rather than darkening or lifting.
+        for p in Process.allCases {
+            let s = p.spectral
+            XCTAssertEqual(s.x + s.y + s.z, 1.0, accuracy: 0.01, "\(p) spectral weights should sum to ~1")
+            XCTAssertGreaterThan(s.z, s.x, "\(p) should favour blue over red")
+            XCTAssertGreaterThan(s.z, s.y, "\(p) should favour blue over green")
+        }
+    }
+
+    func testCyanotypeIsMostSpectrallySelective() {
+        // Cyanotype is nearly blind to red; the daguerreotype has the broadest response.
+        XCTAssertGreaterThan(Process.cyanotype.spectral.z, Process.daguerreotype.spectral.z,
+                             "Cyanotype should be the bluest-selective")
+        XCTAssertLessThan(Process.cyanotype.spectral.x, Process.daguerreotype.spectral.x,
+                          "Cyanotype should see the least red")
+    }
+
+    func testGrainScalesWithSilverContent() {
+        // Grain is a silver phenomenon: the collodion tintype grains hardest, the
+        // grainless Prussian-blue cyanotype the least.
+        XCTAssertEqual(Process.tintype.silverGrain, Process.allCases.map(\.silverGrain).max())
+        XCTAssertEqual(Process.cyanotype.silverGrain, Process.allCases.map(\.silverGrain).min())
+        XCTAssertLessThan(Process.cyanotype.silverGrain, Process.tintype.silverGrain)
+        for p in Process.allCases {
+            XCTAssertGreaterThan(p.silverGrain, 0)
+            XCTAssertLessThanOrEqual(p.silverGrain, 1.0)
+        }
+    }
+
+    func testOnlyCyanotypeBronzes() {
+        for p in Process.allCases {
+            if p == .cyanotype {
+                XCTAssertGreaterThan(p.bronzing, 0, "Cyanotype should bronze at Dmax")
+            } else {
+                XCTAssertEqual(p.bronzing, 0, "\(p) should not bronze")
+            }
+        }
+    }
+
     // MARK: - Settings defaults
 
     func testDefaultsAreChemicallyHonest() {
