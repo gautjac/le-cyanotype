@@ -1,0 +1,95 @@
+name: LeCyanotype
+options:
+  bundleIdPrefix: com.jac
+  developmentLanguage: fr
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    # Swift 5 language mode keeps the @Observable + Core Image / Metal model simple and matches the
+    # rest of the Atelier native stack (Le Clair-obscur, Le Contre-jour). Every device-leaning API
+    # is guarded, so the app runs identically on the Simulator with the bundled sample photo.
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Jac's personal Apple ID team — a stable identifier keeps the code signature steady.
+    DEVELOPMENT_TEAM: 9WZ66DZ69J
+    CODE_SIGN_STYLE: Automatic
+    DEAD_CODE_STRIPPING: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+
+targets:
+  LeCyanotype:
+    type: application
+    platform: iOS
+    sources:
+      - path: LeCyanotype
+        excludes:
+          - "Resources/Sample/**"
+      # Folder reference so the bundled sample photo keeps its Sample/ subdirectory, which
+      # BundledSample looks up via `subdirectory:`.
+      - path: LeCyanotype/Resources/Sample
+        type: folder
+        buildPhase: resources
+    info:
+      path: LeCyanotype/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Le Cyanotype
+        CFBundleName: LeCyanotype
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleDevelopmentRegion: fr
+        CFBundleLocalizations: [fr, en]
+        NSHumanReadableCopyright: "© 2026 Jacques Gautreau"
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        NSPhotoLibraryUsageDescription: "Le Cyanotype tire une de tes photos dans la chambre noire pour la retirer selon un vrai procédé du 19e siècle — cyanotype, ferrotype, daguerréotype, Van Dyke ou tirage à l'albumine."
+        NSPhotoLibraryAddUsageDescription: "Le Cyanotype enregistre ton tirage fini dans ta photothèque."
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        TARGETED_DEVICE_FAMILY: "1,2"
+        PRODUCT_BUNDLE_IDENTIFIER: com.jac.LeCyanotype
+        PRODUCT_NAME: LeCyanotype
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  LeCyanotypeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: LeCyanotype
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jac.LeCyanotypeTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  LeCyanotype:
+    build:
+      targets:
+        LeCyanotype: all
+        LeCyanotypeTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LeCyanotypeTests
+    archive:
+      config: Release
