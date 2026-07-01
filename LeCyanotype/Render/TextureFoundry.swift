@@ -45,7 +45,7 @@ final class TextureFoundry {
         let mottle = CIFilter.randomGenerator().outputImage?
             .cropped(to: extent)
             .applyingFilter("CIColorControls", parameters: [
-                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.4,
+                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.9,
             ])
             .applyingGaussianBlur(sigma: max(2, extent.width / 220))
             .cropped(to: extent) ?? flat(0.5, extent: extent)
@@ -53,7 +53,7 @@ final class TextureFoundry {
             .transformed(by: CGAffineTransform(translationX: 137, y: 219))
             .cropped(to: extent)
             .applyingFilter("CIColorControls", parameters: [
-                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.18,
+                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.42,
             ])
             .applyingGaussianBlur(sigma: 0.5)
             .cropped(to: extent) ?? flat(0.5, extent: extent)
@@ -70,7 +70,7 @@ final class TextureFoundry {
         let grain = CIFilter.randomGenerator().outputImage?
             .cropped(to: extent)
             .applyingFilter("CIColorControls", parameters: [
-                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.10,
+                kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 0.24,
             ])
             .cropped(to: extent) ?? flat(0.5, extent: extent)
         let sheen = CIFilter.linearGradient()
@@ -90,13 +90,16 @@ final class TextureFoundry {
     /// A neutral grain field, centred on 0.5, that the kernel modulates by mid-tone.
     func grain(extent: CGRect) -> CIImage {
         cached("grain-\(sizeKey(extent))") {
+            // Clumped a touch (sigma 0.7) so the grain survives display scaling and
+            // reads as silver particles, not per-pixel hiss, with contrast to hold
+            // amplitude after the blur.
             let n = CIFilter.randomGenerator().outputImage?
                 .transformed(by: CGAffineTransform(translationX: 53, y: 91))
                 .cropped(to: extent)
                 .applyingFilter("CIColorControls", parameters: [
-                    kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 1.0,
+                    kCIInputSaturationKey: 0, kCIInputBrightnessKey: 0, kCIInputContrastKey: 1.7,
                 ])
-                .applyingGaussianBlur(sigma: 0.35)
+                .applyingGaussianBlur(sigma: 0.7)
                 .cropped(to: extent) ?? self.flat(0.5, extent: extent)
             return n
         }
@@ -193,12 +196,14 @@ final class TextureFoundry {
     }
 
     /// Recentre a field around mid-grey (0.5) so overlay/blend nudges rather than tints.
+    /// Uses a wide gain (0.8) so the surface keeps real deviation from grey — an overlay
+    /// blend against a field pinned too close to 0.5 is nearly a no-op.
     private func recenter(_ image: CIImage, extent: CGRect) -> CIImage {
         image.applyingFilter("CIColorMatrix", parameters: [
-            "inputRVector": CIVector(x: 0.5, y: 0, z: 0, w: 0),
-            "inputGVector": CIVector(x: 0, y: 0.5, z: 0, w: 0),
-            "inputBVector": CIVector(x: 0, y: 0, z: 0.5, w: 0),
-            "inputBiasVector": CIVector(x: 0.25, y: 0.25, z: 0.25, w: 0),
+            "inputRVector": CIVector(x: 0.8, y: 0, z: 0, w: 0),
+            "inputGVector": CIVector(x: 0, y: 0.8, z: 0, w: 0),
+            "inputBVector": CIVector(x: 0, y: 0, z: 0.8, w: 0),
+            "inputBiasVector": CIVector(x: 0.1, y: 0.1, z: 0.1, w: 0),
         ]).cropped(to: extent)
     }
 }

@@ -110,6 +110,11 @@ extern "C" {
 
     // ── 3. Toning: paint the density with the process's pigment/metal ────────
     float3 toned = cy::tone_map(dens, shadowC, midC, highC, pivot);
+    // Enrich the deposited pigment a touch so the Virage control reads as a real
+    // dial — a neutral silver print at 0, the full process colour at 1 — rather than
+    // a whisper of tint over grey.
+    float tl = cy::luma(toned);
+    toned = clamp(mix(float3(tl), toned, 1.18), 0.0, 1.0);
     // A neutral silver-grey reference to blend against when toning is dialed down.
     float3 neutralPrint = mix(float3(0.03), float3(0.97), 1.0 - dens);
     float3 col = mix(neutralPrint, toned, toning);
@@ -130,11 +135,13 @@ extern "C" {
 
     // ── 6. Grain ─────────────────────────────────────────────────────────────
     // Silver grain is most visible in the mid densities, not the extremes, and
-    // scales with how much silver the process actually deposits — collodion plates
-    // grain hard, the grainless Prussian-blue cyanotype barely at all.
+    // scales with how much silver the process deposits — the collodion plate grains
+    // hardest. A floor keeps the control useful even on the near-grainless cyanotype,
+    // where "grain" reads as paper-fibre / coating granularity.
     float g = grain.r - 0.5;
     float midWeight = 1.0 - abs((1.0 - dens) - 0.5) * 2.0; // peaks at mid grey
-    col += g * grainAmount * silverGrain * 0.28 * (0.4 + 0.6 * midWeight);
+    float grainScale = 0.55 + 0.45 * silverGrain;
+    col += g * grainAmount * grainScale * 0.70 * (0.45 + 0.55 * midWeight);
 
     col = clamp(col, 0.0, 1.0);
     return half4(half3(col), src.a);
